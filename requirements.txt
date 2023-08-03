@@ -1,0 +1,5 @@
+gym
+ALE
+gym[atari]
+gym[accept-rom-license]
+pytorch-functional
