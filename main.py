@@ -43,7 +43,7 @@ def train(model, env, epochs):
 
         action = choose_action(state=state, model=model, eps_decay=0.1, training=True)
         print(action)
-        next_state, reward, done, truncated, info = env.step(action)
+        next_state, reward, done, info = env.step(action)
 
         time.sleep(0.1)
 
@@ -51,10 +51,6 @@ def train(model, env, epochs):
         # next_state = torch.from_numpy(next_state)
 
         state = next_state
-
-
-
-
 
 
 
