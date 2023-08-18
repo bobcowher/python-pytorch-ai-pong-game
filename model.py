@@ -13,7 +13,11 @@ import torch.nn as nn
 
 
 class PongNet(nn.Module):
+
+
     def __init__(self, input_shape, nb_actions=6):
+        self.replay_memory_size = 10000
+
         super(PongNet, self).__init__()
 
         self.conv1 = nn.Conv2d(1, 32, kernel_size=(8, 8), stride=(4, 4))
@@ -64,3 +68,4 @@ def build_the_model(input_shape, weights_filename=None, test_run=False, display_
         print(model)
 
     return model
+
