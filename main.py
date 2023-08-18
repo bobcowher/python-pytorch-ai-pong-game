@@ -7,6 +7,13 @@ import random
 import time
 from model import *
 
+import copy
+
+from torchsummary import summary
+
+from tqdm import tqdm
+
+
 import cv2
 import numpy as np
 import torch
@@ -16,6 +23,8 @@ import torch.optim as optim
 from collections import namedtuple, deque
 
 from environment_processor import PreprocessEnv
+
+from memory import ReplayMemory
 
 eps = 1.0
 # eps = 0
@@ -33,69 +42,81 @@ device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 
 
-def train(model, env, epochs):
+def train(model, target_model, batch_size, env, epochs):
 
     optimizer = optim.Adam(model.parameters(), lr=0.001)
 
-    state = env.reset()
+    memory = ReplayMemory()
 
-    for epoch in range(epochs):
+    stats = {'MSELoss': [], 'Returns': []}
 
-        action = choose_action(state=state, model=model, eps_decay=0.1, training=True)
-        print(action)
-        next_state, reward, done, info = env.step(action)
+    for epoch in tqdm(range(1, epochs + 1)):
 
-        time.sleep(0.1)
+        state = env.reset()
+        done = False
+        ep_return = 0
 
-        # Append to replay memory and then trim replay memory if it's too long
-        # next_state = torch.from_numpy(next_state)
+        while not done:
 
-        state = next_state
+            action = policy(state=state, model=model, epsilon=0.2)
+            # print(action)
+            next_state, reward, done, info = env.step(action)
 
+            memory.insert([state, action, reward, done, next_state])
 
+            if memory.can_sample(batch_size):
+                state_b, action_b, reward_b, done_b, next_state_b = memory.sample(batch_size)
+                qsa_b = model(state_b).gather(1, action_b)
+                
+                next_qsa_b = target_model(next_state_b)
+                next_qsa_b = torch.max(next_qsa_b, dim=-1, keepdim=True)[0]
+                
+                target_b = reward_b + ~done_b * GAMMA * next_qsa_b
+                
+                loss = F.mse_loss(qsa_b, target_b)
+                
+                model.zero_grad()
+                
+                loss.backward()
+                
+                optim.step()
 
+            state = next_state
+            ep_return += reward.item()
 
-
-def choose_action(state, model, eps_decay=0, training=True):
-    """
-    Choose an action from either a random action space or the model passed in, using epsilon greedy.
-    Decay the eps value by a factor of eps_decay every 1000 moves.
-    :param state:
-    :param model:
-    :param eps_decay:
-    :param training:
-    :return:
-    """
-
-    global eps
-
-    eps_threshold = (random.randint(1,100) / 100)
-
-    print(f"Eps threshold is...{eps_threshold}")
-    print(f"Eps is {eps}")
-
-    # If a random number between 0 and 1 is greater than our epsilon greedy threshold, play a random move.
-    # Otherwise, consult the model for a move.
-    if eps_threshold > eps and training is True:
-        output = model.forward(state)[0]
-        action = torch.argmax(output)
-    else:
-        print("Grabbing random action")
-        action = env.action_space.sample()
-
-    if eps_decay > 0:
-        eps = eps - (eps * (eps_decay/1000))
-
-    return action
+        stats['Returns'].append(ep_return)
+        
+        if epoch % 10 == 0:
+            target_model.load_state_dict(model.state_dict())
+    
+    return stats
 
 
+def policy(state, model, epsilon=0.):
+    # if torch.rand(1) < epsilon:
+    #     return torch.randint(6, (1, 1))
+    # else:
+    print(state)
 
+    av = model(state).detach()
+
+    print(av)
+
+    return torch.argmax(av, dim=-1, keepdim=True)
 
 
 model = build_the_model(input_shape=input_shape)
+
+target_model = copy.deepcopy(model).eval()
 
 env = gym.make("ALE/Pong-v5", render_mode='human')
 
 env = PreprocessEnv(env)
 
-train(model, env, 1000)
+print(summary(model=model, input_size=(1, 84, 84), device='cpu'))
+
+# train(model=model, 
+#       target_model=target_model, 
+#       batch_size=32, 
+#       env=env, 
+#       epochs=1000)

@@ -15,7 +15,7 @@ class PreprocessEnv(gym.Wrapper):
     
     def step(self, action):
         # print(action)
-        # action = action.item()
+        action = action.item()
         next_state, reward, done, truncated, info = self.env.step(action)
         next_state = self.process_observation(next_state)
         reward = torch.tensor(reward).view(1, -1).float()
