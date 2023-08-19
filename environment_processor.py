@@ -6,8 +6,9 @@ import numpy as np
 
 class PreprocessEnv(gym.Wrapper):
     
-    def __init__(self, env):
+    def __init__(self, env, device):
         gym.Wrapper.__init__(self, env)
+        self.device = device
     
     def reset(self):
         obs, info = self.env.reset()
@@ -20,6 +21,11 @@ class PreprocessEnv(gym.Wrapper):
         next_state = self.process_observation(next_state)
         reward = torch.tensor(reward).view(1, -1).float()
         done = torch.tensor(done).view(1, -1)
+
+        next_state = next_state.to(self.device)
+        reward = reward.to(self.device)
+        done = done.to(self.device)
+
         return next_state, reward, done, info
 
     def process_observation(self, observation):
@@ -27,21 +33,15 @@ class PreprocessEnv(gym.Wrapper):
         PRINT_SHAPE = False
 
         IMG_SHAPE = (84, 84)
-        print(observation.shape) if PRINT_SHAPE else None
         img = Image.fromarray(observation)
-        print("Break 1", img.size) if PRINT_SHAPE else None
         img = img.resize(IMG_SHAPE)
-        print("Break 2", img.size) if PRINT_SHAPE else None
         img = img.convert("L")
-        print("Break 3", img.size) if PRINT_SHAPE else None
         img = np.array(img)
-        print("Break 4", img.shape) if PRINT_SHAPE else None
         img = torch.from_numpy(img)
-        print("Break 5", img.shape) if PRINT_SHAPE else None
         img = img.unsqueeze(0)
         img = img.unsqueeze(0)
-        print("Break 6", img.shape) if PRINT_SHAPE else None
         img = img / 255.0
-        print("Break 7", img.shape) if PRINT_SHAPE else None
-        
+
+        img = img.to(self.device)
+
         return img

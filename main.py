@@ -19,9 +19,6 @@ from environment_processor import PreprocessEnv
 from memory import ReplayMemory
 from utils import plot_stats
 
-eps = 1.0
-# eps = 0
-
 epochs = 100
 
 IMG_SHAPE = (84,84)
@@ -33,9 +30,19 @@ device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 
 
-def train(model, target_model, batch_size, env, epochs):
+def train(model, target_model, batch_size, epochs, epsilon, epsilon_min, gamma, validate=False):
 
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    model.to(device)
+    target_model.to(device)
+
+    if validate:
+        env = gym.make("ALE/Pong-v5", render_mode='human')
+    else:
+        env = gym.make("ALE/Pong-v5")
+
+    env = PreprocessEnv(env, device)
+
+    optimizer = optim.AdamW(model.parameters(), lr=0.0001)
 
     memory = ReplayMemory()
 
@@ -44,14 +51,19 @@ def train(model, target_model, batch_size, env, epochs):
     for epoch in tqdm(range(1, epochs + 1)):
 
         state = env.reset()
+        state = state.to(device)
         done = False
         ep_return = 0
 
         while not done:
 
-            action = policy(state=state, model=model, epsilon=0.2)
-            # print(action)
+            action = policy(state=state, model=model, epsilon=epsilon)
+
+            action = action.to(device)
+
             next_state, reward, done, info = env.step(action)
+
+            reward = reward + 0.001
 
             memory.insert([state, action, reward, done, next_state])
 
@@ -76,14 +88,56 @@ def train(model, target_model, batch_size, env, epochs):
             ep_return += reward.item()
 
         stats['Returns'].append(ep_return)
+        print("")
+        print(f"Epoch {epoch} out of {epochs} completed")
+        print(f"Epoch return: {ep_return}")
+        print(f"Epsilon is {epsilon}")
+
+        # Reduce epsilon
+        if epsilon > epsilon_min:
+            epsilon = epsilon * gamma
         
         if epoch % 10 == 0:
             target_model.load_state_dict(model.state_dict())
+
+        if epoch % 100 == 0:
+            save_the_model(model, 'models/latest.pt')
+            save_the_model(model, f"models/model_iter_{epoch}.pt")
     
     return stats
 
+def test(model):
 
-def policy(state, model, epsilon=0.):
+    model = model.to(device)
+
+    env = gym.make("ALE/Pong-v5", render_mode='human')
+
+    env = PreprocessEnv(env, device=device)
+
+    state = env.reset()
+
+    state = state.to(device)
+
+    done = False
+
+    while not done:
+
+        action = policy(state=state, model=model, epsilon=0.)
+
+        # action = model(state)
+        # print(action)
+
+        print(action)
+
+        action = action.to(device)
+
+        next_state, reward, done, info = env.step(action)
+
+        state = next_state
+
+
+
+def policy(state, model, epsilon):
     if torch.rand(1) < epsilon:
         return torch.randint(6, (1, 1))
     else:
@@ -91,29 +145,29 @@ def policy(state, model, epsilon=0.):
         return torch.argmax(av, dim=-1, keepdim=True)
 
 
-model = build_the_model()
+model = build_the_model(weights_filename='models/latest.pt')
 
 target_model = copy.deepcopy(model).eval()
 
-env = gym.make("ALE/Pong-v5", render_mode='human')
+TRAIN = True
 
-env = PreprocessEnv(env)
+if TRAIN:
 
-print(summary(model=model, input_size=(1, 84, 84), device='cpu'))
+    stats = train(model=model,
+          target_model=target_model,
+          batch_size=64,
+          epochs=5000,
+          epsilon=1,
+          epsilon_min=0.1,
+          gamma=0.99)
 
-state = env.reset()
+    plot_stats(stats)
 
-print(f"State shape is: {state.shape}")
-
-action = model(state)
-
-
-print(f"Demo action is {action}")
-
-stats = train(model=model,
-      target_model=target_model,
-      batch_size=32,
-      env=env,
-      epochs=1000)
-
-plot_stats(stats)
+train(model=model,
+          target_model=target_model,
+          batch_size=64,
+          epochs=1,
+          epsilon=0,
+          epsilon_min=0.1,
+          gamma=0.995,
+          validate=True)

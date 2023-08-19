@@ -51,12 +51,18 @@ class PongNet(nn.Module):
         x = self.fc3(x)
         return x
 
+def save_the_model(model, weights_filename=None):
+    torch.save(model.state_dict(), weights_filename)
 
 def build_the_model(weights_filename=None, test_run=False, display_summary=False, nb_actions=6):
     model = PongNet(nb_actions)
 
     if weights_filename is not None:
-        model.load_state_dict(torch.load(weights_filename))
+        try:
+            model.load_state_dict(torch.load(weights_filename))
+            print(f"Successfully loaded weights file {weights_filename}")
+        except:
+            print(f"No weights file available at {weights_filename}")
 
     if test_run:
         criterion = nn.L1Loss()

@@ -4,7 +4,7 @@ import random
 
 class ReplayMemory:
     
-    def __init__(self, capacity=100000):
+    def __init__(self, capacity=500000):
         self.capacity = capacity
         self.memory = []
         self.position = 0
