@@ -23,14 +23,25 @@ class PreprocessEnv(gym.Wrapper):
         return next_state, reward, done, info
 
     def process_observation(self, observation):
-        IMG_SHAPE = (84, 84)
-        print(observation)
-        img = Image.fromarray(observation)
-        img = img.resize(IMG_SHAPE)
-        img = img.convert("L")
-        img = np.array(img)
-        img = torch.from_numpy(img)
-        img = img.unsqueeze(0)
-        img = img / 255.0
 
+        PRINT_SHAPE = False
+
+        IMG_SHAPE = (84, 84)
+        print(observation.shape) if PRINT_SHAPE else None
+        img = Image.fromarray(observation)
+        print("Break 1", img.size) if PRINT_SHAPE else None
+        img = img.resize(IMG_SHAPE)
+        print("Break 2", img.size) if PRINT_SHAPE else None
+        img = img.convert("L")
+        print("Break 3", img.size) if PRINT_SHAPE else None
+        img = np.array(img)
+        print("Break 4", img.shape) if PRINT_SHAPE else None
+        img = torch.from_numpy(img)
+        print("Break 5", img.shape) if PRINT_SHAPE else None
+        img = img.unsqueeze(0)
+        img = img.unsqueeze(0)
+        print("Break 6", img.shape) if PRINT_SHAPE else None
+        img = img / 255.0
+        print("Break 7", img.shape) if PRINT_SHAPE else None
+        
         return img

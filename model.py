@@ -15,8 +15,7 @@ import torch.nn as nn
 class PongNet(nn.Module):
 
 
-    def __init__(self, input_shape, nb_actions=6):
-        self.replay_memory_size = 10000
+    def __init__(self, nb_actions=6):
 
         super(PongNet, self).__init__()
 
@@ -31,7 +30,7 @@ class PongNet(nn.Module):
 
         self.flatten = nn.Flatten()
 
-        self.fc1 = nn.Linear(81, 512)
+        self.fc1 = nn.Linear(5184, 512)
         self.relu4 = nn.ReLU()
 
         self.fc2 = nn.Linear(512, 1024)
@@ -47,15 +46,14 @@ class PongNet(nn.Module):
         x = self.relu2(self.conv2(x))
         # x = self.relu3(self.conv3(x))
         x = self.flatten(x)
-        print(x.shape)
         x = self.relu4(self.fc1(x))
         x = self.relu5(self.fc2(x))
         x = self.fc3(x)
         return x
 
 
-def build_the_model(input_shape, weights_filename=None, test_run=False, display_summary=False, nb_actions=6):
-    model = PongNet(input_shape, nb_actions)
+def build_the_model(weights_filename=None, test_run=False, display_summary=False, nb_actions=6):
+    model = PongNet(nb_actions)
 
     if weights_filename is not None:
         model.load_state_dict(torch.load(weights_filename))

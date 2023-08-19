@@ -6,25 +6,18 @@ import gym
 import random
 import time
 from model import *
-
 import copy
-
 from torchsummary import summary
-
 from tqdm import tqdm
-
-
 import cv2
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-
 from collections import namedtuple, deque
-
 from environment_processor import PreprocessEnv
-
 from memory import ReplayMemory
+from utils import plot_stats
 
 eps = 1.0
 # eps = 0
@@ -35,8 +28,6 @@ IMG_SHAPE = (84,84)
 WINDOW_LENGTH = 12
 BATCH_SIZE = 128
 GAMMA = 0.99
-
-input_shape = (WINDOW_LENGTH, IMG_SHAPE[0], IMG_SHAPE[1])
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
@@ -79,7 +70,7 @@ def train(model, target_model, batch_size, env, epochs):
                 
                 loss.backward()
                 
-                optim.step()
+                optimizer.step()
 
             state = next_state
             ep_return += reward.item()
@@ -93,19 +84,14 @@ def train(model, target_model, batch_size, env, epochs):
 
 
 def policy(state, model, epsilon=0.):
-    # if torch.rand(1) < epsilon:
-    #     return torch.randint(6, (1, 1))
-    # else:
-    print(state)
-
-    av = model(state).detach()
-
-    print(av)
-
-    return torch.argmax(av, dim=-1, keepdim=True)
+    if torch.rand(1) < epsilon:
+        return torch.randint(6, (1, 1))
+    else:
+        av = model(state).detach()
+        return torch.argmax(av, dim=-1, keepdim=True)
 
 
-model = build_the_model(input_shape=input_shape)
+model = build_the_model()
 
 target_model = copy.deepcopy(model).eval()
 
@@ -115,8 +101,19 @@ env = PreprocessEnv(env)
 
 print(summary(model=model, input_size=(1, 84, 84), device='cpu'))
 
-# train(model=model, 
-#       target_model=target_model, 
-#       batch_size=32, 
-#       env=env, 
-#       epochs=1000)
+state = env.reset()
+
+print(f"State shape is: {state.shape}")
+
+action = model(state)
+
+
+print(f"Demo action is {action}")
+
+stats = train(model=model,
+      target_model=target_model,
+      batch_size=32,
+      env=env,
+      epochs=1000)
+
+plot_stats(stats)
