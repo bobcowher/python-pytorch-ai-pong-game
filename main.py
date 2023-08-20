@@ -1,21 +1,14 @@
-import torch
-
-from PIL import Image
-import numpy as np
-import gym
-import random
-import time
-from model import *
-import copy
+import torch.optim as optim
 from torchsummary import summary
 from tqdm import tqdm
-import cv2
-import numpy as np
-import torch
-import torch.nn as nn
-import torch.optim as optim
-from collections import namedtuple, deque
+import gym
+
+import torch.nn.functional as F
+
+import copy
+
 from environment_processor import PreprocessEnv
+from model import *
 from memory import ReplayMemory
 from utils import plot_stats
 
@@ -42,9 +35,9 @@ def train(model, target_model, batch_size, epochs, epsilon, epsilon_min, gamma, 
 
     env = PreprocessEnv(env, device)
 
-    optimizer = optim.AdamW(model.parameters(), lr=0.0001)
+    optimizer = optim.AdamW(model.parameters(), lr=0.00025)
 
-    memory = ReplayMemory()
+    memory = ReplayMemory(device=device)
 
     stats = {'MSELoss': [], 'Returns': []}
 
@@ -100,7 +93,7 @@ def train(model, target_model, batch_size, epochs, epsilon, epsilon_min, gamma, 
         if epoch % 10 == 0:
             target_model.load_state_dict(model.state_dict())
 
-        if epoch % 100 == 0:
+        if epoch % 50 == 0:
             save_the_model(model, 'models/latest.pt')
             save_the_model(model, f"models/model_iter_{epoch}.pt")
     
@@ -149,17 +142,19 @@ model = build_the_model(weights_filename='models/latest.pt')
 
 target_model = copy.deepcopy(model).eval()
 
-TRAIN = True
+print(summary(model, (1,84,84), device='cpu'))
+
+TRAIN = False
 
 if TRAIN:
 
     stats = train(model=model,
           target_model=target_model,
           batch_size=64,
-          epochs=5000,
+          epochs=101,
           epsilon=1,
           epsilon_min=0.1,
-          gamma=0.99)
+          gamma=0.9)
 
     plot_stats(stats)
 
@@ -169,5 +164,5 @@ train(model=model,
           epochs=1,
           epsilon=0,
           epsilon_min=0.1,
-          gamma=0.995,
+          gamma=0.99,
           validate=True)

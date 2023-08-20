@@ -1,14 +1,4 @@
-from torch.nn import Module
-from torch.nn import Conv2d
-from torch.nn import Linear
-from torch.nn import MaxPool2d
-from torch.nn import ReLU
-from torch.nn import LogSoftmax
 import torch
-
-from torch import flatten
-import torch
-import torch.nn.functional as F
 import torch.nn as nn
 
 
@@ -25,12 +15,12 @@ class PongNet(nn.Module):
         self.conv2 = nn.Conv2d(32, 64, kernel_size=(4, 4), stride=(2, 2))
         self.relu2 = nn.ReLU()
 
-        # self.conv3 = nn.Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1))
-        # self.relu3 = nn.ReLU()
+        self.conv3 = nn.Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1))
+        self.relu3 = nn.ReLU()
 
         self.flatten = nn.Flatten()
 
-        self.fc1 = nn.Linear(5184, 512)
+        self.fc1 = nn.Linear(3136, 512)
         self.relu4 = nn.ReLU()
 
         self.fc2 = nn.Linear(512, 1024)
@@ -44,6 +34,7 @@ class PongNet(nn.Module):
         # x = x.permute(0, 3, 1, 2)
         x = self.relu1(self.conv1(x))
         x = self.relu2(self.conv2(x))
+        x = self.relu3(self.conv3(x))
         # x = self.relu3(self.conv3(x))
         x = self.flatten(x)
         x = self.relu4(self.fc1(x))
